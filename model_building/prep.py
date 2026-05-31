@@ -1,75 +1,96 @@
 # for data manipulation
 import pandas as pd
-import sklearn
-# for creating a folder
-import os
+import numpy as np
 # for data preprocessing and pipeline creation
 from sklearn.model_selection import train_test_split
+# for converting text data in to numerical representation
+from sklearn.preprocessing import LabelEncoder
 # for hugging face space authentication to upload files
 from huggingface_hub import login, HfApi
+import os
 
 # Define constants for the dataset and output paths
 api = HfApi(token=os.getenv("HF_TOKEN"))
-DATASET_PATH = "hf://datasets/singhpayal/tourism_project_dataset/tourism.csv"
-tourism_dataset = pd.read_csv(DATASET_PATH)
+DATASET_PATH = "hf://datasets/ananttripathiak/tourism-dataset/tourism.csv"
+df = pd.read_csv(DATASET_PATH)
 print("Dataset loaded successfully.")
+print(f"Dataset shape: {df.shape}")
 
-# Define the target variable for the classification task
-target = 'ProdTaken'
+# Drop the unnamed index column if it exists
+if 'Unnamed: 0' in df.columns or df.columns[0] == '':
+    df = df.iloc[:, 1:]
 
-# List of numerical features in the dataset
-numeric_features = [
-    'Age',     # Customer's age
-    'CityTier', # The city category based on development, population, and living standards (Tier 1 > Tier 2 > Tier 3)
-    'NumberOfPersonVisiting', # Total number of people accompanying the customer on the trip
-    'PreferredPropertyStar',  # Preferred hotel rating by the customer
-    'NumberOfTrips',     # Average number of trips the customer takes annually
-    'NumberOfChildrenVisiting', # Number of children below age 5 accompanying the customer
-    'MonthlyIncome', # Gross monthly income of the customer
-    'PitchSatisfactionScore', # Score indicating the customer's satisfaction with the sales pitch
-    'NumberOfFollowups', # Total number of follow-ups by the salesperson after the sales pitch
-    'DurationOfPitch' # Duration of the sales pitch delivered to the customer
-]
+# Drop CustomerID as it's a unique identifier (not useful for modeling)
+if 'CustomerID' in df.columns:
+    df.drop(columns=['CustomerID'], inplace=True)
 
-# List of categorical features in the dataset
-categorical_features = [
-    'TypeofContact', # The method by which the customer was contacted (Company Invited or Self Inquiry)
-    'Occupation', # Customer's occupation (e.g., Salaried, Freelancer)
-    'Gender', # Gender of the customer (Male, Female)
-    'MaritalStatus', # Marital status of the customer (Single, Married, Divorced)
-    'Designation', # Customer's designation in their current organization
-    'ProductPitched', # The type of product pitched to the customer
-    'Passport', # Whether the customer holds a valid passport (0: No, 1: Yes)
-    'OwnCar' # Whether the customer owns a car (0: No, 1: Yes)
-]
+# Handle missing values
+print("\nHandling missing values...")
+# For numerical columns, fill with median
+numerical_cols = df.select_dtypes(include=[np.number]).columns
+for col in numerical_cols:
+    if df[col].isnull().sum() > 0:
+        df[col].fillna(df[col].median(), inplace=True)
 
-# Define predictor matrix (X) using selected numeric and categorical features
-X = tourism_dataset[numeric_features + categorical_features]
+# For categorical columns, fill with mode
+categorical_cols = df.select_dtypes(include=['object']).columns
+for col in categorical_cols:
+    if df[col].isnull().sum() > 0:
+        df[col].fillna(df[col].mode()[0], inplace=True)
+
+# Handle specific data quality issues (e.g., "Fe Male" should be "Female")
+if 'Gender' in df.columns:
+    df['Gender'] = df['Gender'].str.strip().replace({'Fe Male': 'Female', 'Fe male': 'Female'})
+
+# Encode categorical columns
+print("\nEncoding categorical variables...")
+label_encoder = LabelEncoder()
+
+# List of categorical columns to encode
+categorical_features = ['TypeofContact', 'Occupation', 'Gender', 'ProductPitched', 
+                        'MaritalStatus', 'Designation']
+
+for col in categorical_features:
+    if col in df.columns:
+        df[col] = label_encoder.fit_transform(df[col].astype(str))
 
 # Define target variable
-y = tourism_dataset[target]
+target_col = 'ProdTaken'
 
+# Split into X (features) and y (target)
+X = df.drop(columns=[target_col])
+y = df[target_col]
 
-# Split dataset into train and test
-# Split the dataset into training and test sets
+print(f"\nFeatures shape: {X.shape}")
+print(f"Target shape: {y.shape}")
+print(f"Target distribution:\n{y.value_counts()}")
+
+# Perform train-test split
 Xtrain, Xtest, ytrain, ytest = train_test_split(
-    X, y,              # Predictors (X) and target variable (y)
-    test_size=0.2,     # 20% of the data is reserved for testing
-    random_state=42    # Ensures reproducibility by setting a fixed random seed
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-Xtrain.to_csv("Xtrain.csv",index=False)
-Xtest.to_csv("Xtest.csv",index=False)
-ytrain.to_csv("ytrain.csv",index=False)
-ytest.to_csv("ytest.csv",index=False)
+print(f"\nTrain set size: {Xtrain.shape[0]}")
+print(f"Test set size: {Xtest.shape[0]}")
 
+# Save the datasets
+Xtrain.to_csv("Xtrain.csv", index=False)
+Xtest.to_csv("Xtest.csv", index=False)
+ytrain.to_csv("ytrain.csv", index=False)
+ytest.to_csv("ytest.csv", index=False)
 
-files = ["Xtrain.csv","Xtest.csv","ytrain.csv","ytest.csv"]
+print("\nDatasets saved locally.")
+
+# Upload to Hugging Face
+files = ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]
 
 for file_path in files:
     api.upload_file(
         path_or_fileobj=file_path,
-        path_in_repo=file_path.split("/")[-1],  # just the filename
-        repo_id = "singhpayal/tourism_project_dataset",
+        path_in_repo=file_path.split("/")[-1],
+        repo_id="ananttripathiak/tourism-dataset",
         repo_type="dataset",
     )
+    print(f"Uploaded {file_path} to Hugging Face")
+
+print("\nData preparation completed successfully!")
