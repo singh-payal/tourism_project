@@ -1,17 +1,23 @@
+# Use a minimal base image with Python 3.9 installed
+FROM python:3.9
 
-FROM python:3.13.5-slim
-
+# Set the working directory inside the container to /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y     build-essential     curl     git     && rm -rf /var/lib/apt/lists/*
+# Copy all files from the current directory on the host to the container's /app directory
+COPY . .
 
-COPY requirements.txt ./
-COPY src/ ./src/
-
+# Install Python dependencies listed in requirements.txt
 RUN pip3 install -r requirements.txt
 
-EXPOSE 8501
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+	PATH=/home/user/.local/bin:$PATH
 
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+WORKDIR $HOME/app
 
-ENTRYPOINT ["streamlit", "run", "src/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+COPY --chown=user . $HOME/app
+
+# Define the command to run the Streamlit app on port "8501" and make it accessible externally
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableXsrfProtection=false"]
