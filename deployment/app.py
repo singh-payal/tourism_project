@@ -16,7 +16,7 @@ st.set_page_config(
 def load_model():
     try:
         model_path = hf_hub_download(
-            repo_id="singhpayal/tourism_project_model",
+            repo_id="singhpayal/tourism-prediction-model", 
             filename="best_tourism_model_v1.joblib"
         )
         model = joblib.load(model_path)
@@ -53,7 +53,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("""
-This application predicts the likelihood of a customer purchasing the **Wellness Tourism Package**
+This application predicts the likelihood of a customer purchasing the **Wellness Tourism Package** 
 based on their profile and interaction data. Enter customer details below to get a prediction.
 """)
 
@@ -62,37 +62,37 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📋 Customer Demographics")
-
+    
     age = st.number_input("Age", min_value=18, max_value=100, value=35, step=1)
-
+    
     type_of_contact = st.selectbox(
         "Type of Contact",
         options=["Self Enquiry", "Company Invited"]
     )
-
+    
     city_tier = st.selectbox(
         "City Tier",
         options=[1, 2, 3],
         help="Tier 1: Metro cities, Tier 2: Mid-sized cities, Tier 3: Smaller cities"
     )
-
+    
     occupation = st.selectbox(
         "Occupation",
         options=["Salaried", "Small Business", "Free Lancer", "Large Business"]
     )
-
+    
     gender = st.selectbox("Gender", options=["Male", "Female"])
-
+    
     marital_status = st.selectbox(
         "Marital Status",
         options=["Single", "Married", "Divorced", "Unmarried"]
     )
-
+    
     designation = st.selectbox(
         "Designation",
         options=["Executive", "Manager", "Senior Manager", "AVP", "VP"]
     )
-
+    
     monthly_income = st.number_input(
         "Monthly Income (₹)",
         min_value=0.0,
@@ -103,7 +103,7 @@ with col1:
 
 with col2:
     st.subheader("🎯 Customer Interaction & Preferences")
-
+    
     duration_of_pitch = st.number_input(
         "Duration of Pitch (minutes)",
         min_value=0.0,
@@ -111,7 +111,7 @@ with col2:
         value=15.0,
         step=0.5
     )
-
+    
     number_of_persons_visiting = st.number_input(
         "Number of Persons Visiting",
         min_value=1,
@@ -119,7 +119,7 @@ with col2:
         value=2,
         step=1
     )
-
+    
     number_of_followups = st.number_input(
         "Number of Follow-ups",
         min_value=0.0,
@@ -127,17 +127,17 @@ with col2:
         value=3.0,
         step=1.0
     )
-
+    
     product_pitched = st.selectbox(
         "Product Pitched",
         options=["Basic", "Standard", "Deluxe", "Super Deluxe", "King"]
     )
-
+    
     preferred_property_star = st.selectbox(
         "Preferred Property Star Rating",
         options=[3.0, 4.0, 5.0]
     )
-
+    
     number_of_trips = st.number_input(
         "Number of Trips (per year)",
         min_value=0.0,
@@ -145,9 +145,9 @@ with col2:
         value=3.0,
         step=1.0
     )
-
+    
     passport = st.selectbox("Has Passport?", options=["Yes", "No"])
-
+    
     pitch_satisfaction_score = st.slider(
         "Pitch Satisfaction Score",
         min_value=1,
@@ -155,9 +155,9 @@ with col2:
         value=3,
         step=1
     )
-
+    
     own_car = st.selectbox("Owns Car?", options=["Yes", "No"])
-
+    
     number_of_children_visiting = st.number_input(
         "Number of Children Visiting",
         min_value=0.0,
@@ -209,10 +209,10 @@ if st.button("🔮 Predict Purchase Likelihood", use_container_width=True):
             # Make prediction
             prediction = model.predict(input_data)[0]
             prediction_proba = model.predict_proba(input_data)[0]
-
+            
             # Display results
             st.markdown("### 📊 Prediction Results")
-
+            
             if prediction == 1:
                 st.markdown(
                     f'<div class="prediction-box success-box">'
@@ -233,14 +233,14 @@ if st.button("🔮 Predict Purchase Likelihood", use_container_width=True):
                     unsafe_allow_html=True
                 )
                 st.info("💡 **Recommendation:** Consider alternative packages or additional engagement strategies.")
-
+            
             # Show probability breakdown
             col_prob1, col_prob2 = st.columns(2)
             with col_prob1:
                 st.metric("Probability of No Purchase", f"{prediction_proba[0]*100:.2f}%")
             with col_prob2:
                 st.metric("Probability of Purchase", f"{prediction_proba[1]*100:.2f}%")
-
+                
         except Exception as e:
             st.error(f"Error making prediction: {e}")
     else:
